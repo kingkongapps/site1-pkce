@@ -39,7 +39,7 @@
 <body>
 
 <div class="center-container">
-    <h1>Welcome to IAM Test Site</h1>
+    <h1>Welcome to IAM Test Site (운영)</h1>
     <div id="auth-links" class="d-flex flex-column align-items-center">
         <!-- 버튼이 여기에 동적으로 삽입됩니다 -->
     </div>
@@ -76,14 +76,14 @@
         // 로그인 상태
         container.innerHTML = `
             <button onclick="location.href='/test/logout'" class="btn btn-secondary big-button">로그아웃 (Logout)</button>
-            <button onclick="location.href='/test/myaccount'" class="btn btn-primary big-button">내 인증정보 (Payload)</button>
+            <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
         `;
     } else {
         // 비로그인 상태
         container.innerHTML = `
             <button onclick="location.href='/test/login'" class="btn btn-success big-button">로그인 (Login)</button>
-            <button onclick="location.href='https://dev-iam.nwcgm.com/join?id_join=Y&client_id=wmd-client&redirect_uri=https://www.kingkongapps.kr:39090/test'" class="btn btn-warning big-button">가입하기 (Join)</button>
-            <button onclick="location.href='/test/myaccount'" class="btn btn-primary big-button">내 인증정보 (Payload)</button>
+            <button onclick="location.href='https://dev-iam.nwcgm.com/join?id_join=Y&client_id=wmd-front&redirect_uri=https://www.kingkongapps.kr:39091/test'" class="btn btn-warning big-button">가입하기 (Join)</button>
+            <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
         `;
     }
 </script>

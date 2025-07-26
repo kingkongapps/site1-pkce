@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>내 정보(MyPage)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: sans-serif;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 3rem auto;
+            padding: 2rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        td {
+            padding: 0.5rem;
+            border-bottom: 1px solid #ccc;
+        }
+
+        td:first-child {
+            font-weight: bold;
+            width: 30%;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.4rem;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+<div class="container">
+    <h1>내 정보 (MyPage)</h1>
+    <table>
+        <tr><td>E-mail</td><td><input type="text" id="email" /></td></tr>
+        <tr><td>이름</td><td><input type="text" id="name" /></td></tr>
+        <tr><td>별칭</td><td><input type="text" id="nickname" /></td></tr>
+        <tr><td>성별</td><td><input type="text" id="gender" /></td></tr>
+        <tr><td>생년월일</td><td><input type="text" id="birth" /></td></tr>
+        <tr><td>연락처</td><td><input type="text" id="tel" /></td></tr>
+        <tr><td>UUID</td><td><input type="text" id="id" /></td></tr>
+        <tr><td>본인인증 수단</td><td><input type="text" id="selfAuthType" /></td></tr>
+        <tr><td>계정활성 여부</td><td><input type="text" id="enabled" /></td></tr>
+        <tr><td>E-mail인증 여부</td><td><input type="text" id="emailVerified" /></td></tr>
+        <tr><td>휴대폰인증 여부</td><td><input type="text" id="telVerified" /></td></tr>
+        <tr><td>정회원 여부</td><td><input type="text" id="proviVerified" /></td></tr>
+        <tr><td>추천인 이름</td><td><input type="text" id="referrerName" /></td></tr>
+        <tr><td>추천인 연락처</td><td><input type="text" id="referrerTel" /></td></tr>
+        <tr><td>마지막 로그인 시간</td><td><input type="text" id="lastLoginAt" /></td></tr>
+        <tr><td>생성일자</td><td><input type="text" id="createdAt" /></td></tr>
+        <tr><td>수정일자</td><td><input type="text" id="updatedAt" /></td></tr>
+    </table>
+</div>
+
+<script>
+    const keycloakConfig = {
+//      userEndpoint: 'https://dev-auth.nwcgm.com/realms/nwc/protocol/openid-connect/userinfo',
+        userEndpoint: 'https://dev-iam.nwcgm.com/api/user',
+        redirectLoginUri: 'https://www.kingkongapps.kr:39090/test/login',
+    };
+
+    function getCookie(name) {
+        const cookies = document.cookie.split(';');
+        for (let c of cookies) {
+            const [key, val] = c.trim().split('=');
+            if (key === name) return decodeURIComponent(val);
+        }
+        return null;
+    }
+
+    async function loadUserInfo() {
+        const accessToken = getCookie('access_token');
+        if (!accessToken) {
+            Swal.fire({ title: '오류', text: '인증정보가 없습니다. 로그인을 진행해 주세요.', timer: 2000, timerProgressBar: true})
+                .then( () => {
+                    window.location.href = keycloakConfig.redirectLoginUri;
+                });
+            return;
+        }
+
+        try {
+            const response = await fetch(keycloakConfig.userEndpoint, {
+                headers: {
+                    Authorization: 'Bearer ' + accessToken
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Keycloak Userinfo 정보 요청 실패');
+            }
+
+            const res = await response.json();
+            console.log('response:', res);
+
+            if( res.resultCode != "ok" ) {
+                Swal.fire({ title: '오류', text: '내 정보가 없습니다.', timer: 2000, timerProgressBar: true});
+                return;
+            }
+            //
+            const user = res.data.user;
+
+            console.log('User Info:', res.data.email);
+            console.log('User Info:', res.data.user);
+
+            // 사용자 정보 맵핑
+            document.getElementById('email').value = res.data.email || '';
+            document.getElementById('name').value = user.name || '';
+            document.getElementById('nickname').value = user.nickname || '';
+            document.getElementById('gender').value = user.gender || '';
+            document.getElementById('birth').value = user.birth || '';
+            document.getElementById('tel').value = user.tel || '';
+            document.getElementById('id').value = user.id || '';
+            document.getElementById('selfAuthType').value = user.selfAuthType || '';
+            document.getElementById('enabled').value = user.enabled || '';
+            document.getElementById('emailVerified').value = user.emailVerified || '';
+            document.getElementById('telVerified').value = user.telVerified || '';
+            document.getElementById('proviVerified').value = user.proviVerified || '';
+            document.getElementById('referrerName').value = user.referrerName || '';
+            document.getElementById('referrerTel').value = user.referrerTel || '';
+            document.getElementById('lastLoginAt').value = user.lastLoginAt || '';
+            document.getElementById('createdAt').value = user.createdAt || '';
+            document.getElementById('updatedAt').value = user.updatedAt || '';
+        } catch (error) {
+            console.error('사용자 정보 로딩 오류:', error);
+            alert('Keycloak Userinfo를 불러오는 중 오류가 발생했습니다.');
+        }
+    }
+
+    loadUserInfo();
+</script>
+</body>
+</html>

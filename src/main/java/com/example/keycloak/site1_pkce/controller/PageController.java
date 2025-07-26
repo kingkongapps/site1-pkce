@@ -29,4 +29,10 @@ public class PageController {
         return "/login/myaccount";
     }
 
+    @GetMapping(value = "/mypage")
+    public String gotMyPage() {
+        System.out.println("gotMyPage()...");
+        return "/login/mypage";
+    }
+
 }

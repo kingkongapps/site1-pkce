@@ -51,15 +51,15 @@ Login...<BR>
 <div id="result"></div>
 
 <script>
-    const IAM_HOST = 'https://dev-iam.nwcgm.com';
+    const IAM_HOST = 'https://iam.nwcgm.com';
 
     // redirectUri : code -> token 으로 교환해야 하니 다시 login 페이지로 돌아와야 함
     // redirectHomeUri : 회원가입 여부 -> 미가입시 IAM 회원가입 완료 후 다시 돌아갈 Uri (Home으로 돌려 보낸다)
     const keycloakConfig = {
-      authEndpoint: 'https://dev-auth.nwcgm.com/realms/nwc/protocol/openid-connect/auth',
-      tokenEndpoint: 'https://dev-auth.nwcgm.com/realms/nwc/protocol/openid-connect/token',
+      authEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/auth',
+      tokenEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/token',
 
-      clientId: 'wmd-client',
+      clientId: 'wmd-front',
       redirectUri: 'https://www.kingkongapps.kr:39090/test/login',
       redirectHomeUri: 'https://www.kingkongapps.kr:39090/test',
     };
@@ -181,7 +181,7 @@ Login...<BR>
 
         // 회원가입여부 - 미가입시 IAM 회원가입페이지로 이동
         if( ! payload.member_verified ) {
-            Swal.fire({ title: '[ 알림 ]', html: 'member_verified is false.<BR>회원가입을 진행해 주세요.', timer: 2000, timerProgressBar: true})
+            Swal.fire({ title: '[ 알림 ]', html: 'E-mail:' + payload.email + '<BR>member_verified is false.<BR>회원가입을 진행해 주세요.', timer: 2000, timerProgressBar: true})
                 .then( () => {
                     redirectToJoin();
                 });
