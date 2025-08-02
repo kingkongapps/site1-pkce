@@ -1,107 +1,16 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>로그아웃</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body, html {
-            height: 100%;
-            margin: 0;
-        }
-
-        .logout-container {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: sans-serif;
-            text-align: center;
-        }
-
-        .message {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .redirect {
-            font-size: 1rem;
-            color: #888;
-        }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
+<html>
 <body>
-<div class="logout-container">
-    <div class="message">로그아웃 되었습니다.</div>
-    <div class="redirect">잠시 후 메인 페이지로 이동합니다...</div>
-</div>
-
 <script>
-    const keycloakConfig = {
-      logoutEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/logout',
-
-      clientId: 'wmd-front',
-      redirectUri: 'https://www.kingkongapps.kr:39090/test'
-    };
-
-    // 쿠키 읽기
-    function getCookie(name) {
-        const cookies = document.cookie.split(';');
-        for (let c of cookies) {
-            const [key, val] = c.trim().split('=');
-            if (key === name) return decodeURIComponent(val);
-        }
-        return null;
-    }
-
-    async function buildLogoutUrl(id_token) {
-      var lang = "ko";
-      console.log('lang=' + lang);
-      console.log('id_token=' + id_token);
-
-      const params = new URLSearchParams({
-        post_logout_redirect_uri: keycloakConfig.redirectUri,
-        id_token_hint: id_token
-      });
-
-      console.log(params.toString());
-
-      return `${keycloakConfig.logoutEndpoint}?${params.toString()}`;
-    }
-
-    async function logoutKeycloak() {
-        const id_token = getCookie('id_token'); // 쿠키 이름에 맞게 수정
-//      alert('id_token=' + id_token);
-
-        await sleep(1000); // 1초 대기
-
-        // 쿠키 삭제
-        deleteCookie('access_token');
-        deleteCookie('refresh_token');
-        deleteCookie('id_token');
-
-        if( id_token ) {
-            const logoutUrl = await buildLogoutUrl(id_token);
-            window.location.href = logoutUrl;
-        }
-    }
-
-    // 삭제할 쿠키 이름
     function deleteCookie(name) {
         document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
     }
-
-    async function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    function deleteAllCoolies() {
+        deleteCookie('access_token');
+        deleteCookie('refresh_token');
+        deleteCookie('id_token');
+        deleteCookie('JSESSIONID');
     }
-
-    //keycloak Logout
-    logoutKeycloak();
-
-
-
+    deleteAllCoolies();
 </script>
 </body>
 </html>
