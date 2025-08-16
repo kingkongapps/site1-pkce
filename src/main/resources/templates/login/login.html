@@ -45,236 +45,35 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/test/js/cgm-iam-config.js"></script>
+    <script src="/test/js/cgm-iam-lib.js"></script>
 </head>
 <body>
 Login...<BR>
 <div id="result"></div>
 
 <script>
-    const IAM_HOST = 'https://iam.nwcgm.com';
-
-    // redirectUri : code -> token 으로 교환해야 하니 다시 login 페이지로 돌아와야 함
-    // redirectHomeUri : 회원가입 여부 -> 미가입시 IAM 회원가입 완료 후 다시 돌아갈 Uri (Home으로 돌려 보낸다)
-    const keycloakConfig = {
-      authEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/auth',
-      tokenEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/token',
-
-      clientId: 'wmd-front',
-      redirectUri:     'https://www.kingkongapps.kr:39090/test/login',
-      redirectHomeUri: 'https://www.kingkongapps.kr:39090/test',
-    };
-
-    async function buildAuthUrl() {
-      const state = generateRandomString();
-      const nonce = generateRandomString();
-      const code_verifier = generateCodeVerifier();
-      const code_challenge = await generateCodeChallenge(code_verifier);
-      sessionStorage.setItem('code_verifier', code_verifier);
-
-      var lang = "ko";
-
-      console.log('lang=' + lang);
-      console.log('code_verifier=' + code_verifier);
-      console.log('code_challenge=' + code_challenge);
-
-      const params = new URLSearchParams({
-        client_id: keycloakConfig.clientId,
-        redirect_uri: keycloakConfig.redirectUri,
-        response_type: 'code',
-        scope: 'openid',
-        state: state,
-        nonce: nonce,
-        kc_locale: lang,
-        code_challenge: code_challenge,
-        code_challenge_method: 'S256',
-      });
-
-      console.log(params.toString());
-
-      return `${keycloakConfig.authEndpoint}?${params.toString()}`;
-    }
-
-    function generateRandomString() {
-      return Math.random().toString(36).substring(2, 15);
-    }
-
-    function generateCodeVerifier() {
-      const array = new Uint8Array(32);
-      window.crypto.getRandomValues(array);
-      return base64UrlEncode(array);
-    }
-
-    async function generateCodeChallenge(codeVerifier) {
-      const data = new TextEncoder().encode(codeVerifier);
-      const digest = await window.crypto.subtle.digest("SHA-256", data);
-      return base64UrlEncode(digest);
-    }
-    function base64UrlEncode(buffer) {
-      return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
-    }
-
-    async function redirectToLogin() {
-      const authUrl = await buildAuthUrl();
-      window.location.href = authUrl;
-    }
-
-    async function exchangeCodeForToken(code) {
-    //alert('2..code->token...');
-
-      const code_verifier = sessionStorage.getItem('code_verifier');
-      //
-      const params = new URLSearchParams();
-      params.append('grant_type', 'authorization_code');
-      params.append('code', code);
-      params.append('code_verifier', code_verifier);
-      params.append('redirect_uri', keycloakConfig.redirectUri);
-      params.append('client_id', keycloakConfig.clientId);
-
-      try {
-        const response = await fetch(keycloakConfig.tokenEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: params
-        });
-
-        if (!response.ok) {
-          const error = await response.text();
-          console.error('Token exchange failed:', error);
-          document.getElementById('result').innerHTML = `<pre style="color:red;">Token exchange failed: ${error}</pre>`;
-          return;
-        }
-
-        const data = await response.json();
-
-//        alert('3.access-token=' + data.access_token);
-
-        console.log('Access Token:', data.access_token);
-        console.log('ID Token:', data.id_token);
-        console.log('Refresh Token:', data.refresh_token);
-
-        // token validate...
-        const parts = data.access_token.split('.');
-        if (parts.length !== 3) {
-          console.error('Invalid Access Token');
-          document.getElementById('result').innerHTML = `<pre style="color:red;">Invalid Access Token</pre>`;
-          return;
-        }
-
-        const parts2 = base64UrlDecode(parts[1]);
-        if (!parts2) {
-          console.error('Base64UrlDecode failed');
-          document.getElementById('result').innerHTML = `<pre style="color:red;">Base64UrlDecode failed</pre>`;
-          return;
-        }
-
-        const payload = JSON.parse(parts2);
-        console.log('Decoded Token(Payload):' + JSON.stringify(payload));
-        console.log('Decoded Token(sub):' + payload.sub);
-        console.log('Decoded Token(email):' + payload.email);
-        console.log('Decoded Token(member_name):' + payload.member_name);
-        console.log('Decoded Token(member_verified):' + payload.member_verified);
-
-        // 회원가입여부 - 미가입시 IAM 회원가입페이지로 이동
-        if( ! payload.member_verified ) {
-            Swal.fire({ title: '[ 알림 ]', html: 'E-mail:' + payload.email + '<BR>member_verified is false.<BR>회원가입을 진행해 주세요.', timer: 2000, timerProgressBar: true})
-                .then( () => {
-                    redirectToJoin();
-                });
-            return;
+    const result = cgmIamLib.checkLogin();
+    result.then( isLogined => {
+        console.log('login::isLogined=' + isLogined);
+        if( isLogined ) {
+            // 이미 로그인 되었으면 홈으로. 또는 로그인 이후 가야할 첫 페이지로 이동
+            window.location.href = "/test";
         } else {
-            // member_verified == true 일떄 Cookie 저장...
-            setCookie('access_token', data.access_token, 10);
-            setCookie('refresh_token', data.refresh_token, 30);
-            setCookie('id_token', data.id_token, 10);
-
-            window.location.href = keycloakConfig.redirectHomeUri;  //test
+            const code = cgmIamLib.getAuthorizationCodeFromURL();
+            if (code) {
+                const tmp = cgmIamLib.exchangeCodeForToken(code); // code가 있다면 2단계 진행
+                tmp.then( () => {
+                    window.location.href = cgmIamConfig.HOME_URI;
+                });
+            } else {
+                cgmIamLib.redirectToLogin();
+            }
         }
-
-      } catch (err) {
-        console.error('Error during token exchange:', err);
-        document.getElementById('result').innerHTML = `<pre style="color:red;">Error: ${err.message}</pre>`;
-      }
-    }
-
-    function getAuthorizationCodeFromURL() {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('code');
-    }
-
-    //member_verified = false 일때 -> IAM 가입하기로 JUMP...
-    //IAM 가입 완료 후 원래 Home으로 돌려준다.
-    async function buildJoinUrl() {
-      const params = new URLSearchParams({
-        client_id: 'wmd-front',
-        redirect_uri: keycloakConfig.redirectHomeUri
-      });
-//        o_client_id: 'wmd-front',
-//        o_redirect_uri: keycloakConfig.redirectHomeUri
-
-      return `${IAM_HOST}/join?${params.toString()}`;
-    }
-
-    async function redirectToJoin() {
-        const joinUrl = await buildJoinUrl();
-        window.location.href = joinUrl;
-    }
-
-    // 페이지 로드 시 code 있으면 토큰 교환 시도
-    const code = getAuthorizationCodeFromURL();
-    if (code) {
-//      alert('1.code=' + code);
-        exchangeCodeForToken(code);
-    } else {
-        const referer = document.referrer;
-//        alert('referer=' + referer);
-
-        redirectToLogin();
-    }
-
-    //
-    function base64UrlDecode(str) {
-        str = str.replace(/-/g, '+').replace(/_/g, '/');
-        const pad = str.length % 4;
-        if (pad) str += '='.repeat(4 - pad);
-        try {
-          return decodeURIComponent(escape(atob(str)));
-        } catch (err) {
-		  return "";
-        }
-    }
-
-    // 쿠키 읽기
-    function getCookie(name) {
-        const cookies = document.cookie.split(';');
-        for (let c of cookies) {
-            const [key, val] = c.trim().split('=');
-            if (key === name) return decodeURIComponent(val);
-        }
-        return null;
-    }
-
-    // 쿠키 설정 (분 단위)
-    function setCookie(name, value, minutes) {
-        const expires = new Date();
-        expires.setTime(expires.getTime() + minutes * 60 * 1000);
-        document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/`;
-    }
-
-    // 쿠키 삭제
-    function deleteCookie(name) {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
-    }
-
-    async function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
+    });
 
 </script>
+
 </body>
 </html>
 

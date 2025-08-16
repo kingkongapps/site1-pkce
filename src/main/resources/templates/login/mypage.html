@@ -45,6 +45,8 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/test/js/cgm-iam-config.js"></script>
+    <script src="/test/js/cgm-iam-lib.js"></script>
 </head>
 <body>
 <div class="container">
@@ -72,22 +74,13 @@
 
 <script>
     const keycloakConfig = {
-//      userEndpoint: 'https://auth.nwcgm.com/realms/nwc/protocol/openid-connect/userinfo',
-        userEndpoint: 'https://iam.nwcgm.com/api/user',
-        redirectLoginUri: 'https://www.kingkongapps.kr:39090/test/login',
+//      userEndpoint: 'https://dev-auth.nwcgm.com/realms/nwc/protocol/openid-connect/userinfo',
+        userEndpoint: 'https://dev-iam.nwcgm.com/api/user',
+        redirectLoginUri: 'https://www.doridori.pe.kr:13000/test/login',
     };
 
-    function getCookie(name) {
-        const cookies = document.cookie.split(';');
-        for (let c of cookies) {
-            const [key, val] = c.trim().split('=');
-            if (key === name) return decodeURIComponent(val);
-        }
-        return null;
-    }
-
     async function loadUserInfo() {
-        const accessToken = getCookie('access_token');
+        const accessToken = localStorage.getItem(CGMIAM_ID_TOKEN_KEY);
         if (!accessToken) {
             Swal.fire({ title: '오류', text: '인증정보가 없습니다. 로그인을 진행해 주세요.', timer: 2000, timerProgressBar: true})
                 .then( () => {

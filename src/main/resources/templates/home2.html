@@ -54,16 +54,8 @@
 <script>
     const container = document.getElementById('auth-links');
 
-    async function doLoginCheck() {
-
-        // 로그아웃
-//        const btnLogout = document.getElementById('btnLogout');
-//        btnLogout.addEventListener('click', function () {
-//            cgmIamLib.logout();
-//        });
-
-        // 로그인 여부에 따라 화면 분기 처리. await 필요
-        let isLogined = await cgmIamLib.checkLogin();
+    const result = cgmIamLib.checkLogin();
+    result.then( isLogined => {
         console.log('home::isLogined=' + isLogined);
         if( isLogined ) {
             // 사용자명, 로그아웃버튼 출력
@@ -80,6 +72,8 @@
                 <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
                 <button onclick="location.href='https://dev-iam.nwcgm.com/membership'" class="btn btn-primary big-button">멤버십 (Membership)</button>
                 <button onclick="location.href='/test/guest'" class="btn btn-primary big-button">Guest</button>
+                <HR>
+                <button onclick="javascript:doCheckLogin()" class="btn btn-success big-button">getIamToken</button>
             `;
         } else {
             document.getElementById('div_user_info').style.display = 'none';
@@ -87,15 +81,28 @@
             // 비로그인 상태
             container.innerHTML = `
                 <button onclick="location.href='/test/login'" class="btn btn-success big-button">로그인 (Login)</button>
-                <button onclick="location.href='https://dev-iam.nwcgm.com/join?id_join=Y&client_id=wmd-front&redirect_uri=https://www.doridori.pe.kr:13000/test'" class="btn btn-warning big-button">가입하기 (Join)</button>
+                <button onclick="location.href='https://dev-iam.nwcgm.com/join?id_join=Y&client_id=wmd-front&redirect_uri=https://www.kingkongapps.kr:39090/test'" class="btn btn-warning big-button">가입하기 (Join)</button>
                 <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
                 <button onclick="location.href='/test/guest'" class="btn btn-primary big-button">Guest</button>
+                <hr>
+                <button onclick="javascript:doCheckLogin()" class="btn btn-success big-button">getIamToken</button>
+                <button onclick="javascript:doSetToken()" class="btn btn-warning big-button">setIamToken</button>
             `;
         }
-    };
+    });
 
-    window.addEventListener("DOMContentLoaded", doLoginCheck, { once: true });
+    async function doCheckLogin() {
+        let isLogined = await cgmIamLib.checkLogin();
+        console.log("isLogined=", isLogined);
+        return isLogined;
+    }
 
+    async function doSetToken() {
+        console.log('doSetToken()......');
+        const token = sessionStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY);
+        console.log('token=' + token);
+        await cgmIamLib.setAccessToken(token);
+    }
 </script>
 
 </body>

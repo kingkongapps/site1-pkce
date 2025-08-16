@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>HOME</title>
+<script src="/test/js/cgm-iam-config.js"></script>
+<script src="/test/js/cgm-iam-lib.js"></script>
+</head>
+<body>
+
+    <!--
+    GUEST 접근 가능한 페이지
+    로그인 여부에 따라 분기 처리
+    -->
+
+    HOME ....
+
+    <div id="div_user_info" style="display: none">
+        <div id="email"></div>
+        <div id="member_name"></div>
+        <button id="btnLogout">LOGOUT</button>
+    </div>
+    <div id="div_login" style="display: block">
+        <a href="/test/login">LOGIN</a>
+    </div>
+
+<script>
+
+
+window.onload = function() {
+    
+    // 로그아웃
+    const btnLogout = document.getElementById('btnLogout');
+    btnLogout.addEventListener('click', function () {
+        cgmIamLib.logout();
+    });
+
+    // 로그인 여부에 따라 화면 분기 처리. await 필요
+//    let isLogined = await cgmIamLib.checkLogin();
+
+    const result = cgmIamLib.checkLogin();
+    result.then( isLogined => {
+        console.log('login::isLogined=' + isLogined);
+
+    if ( isLogined )
+    {
+        // 사용자명, 로그아웃버튼 출력
+        let token = cgmIamLib.getAccessToken();
+        let email = cgmIamLib.getTokenField(token, 'email');
+        let member_name = cgmIamLib.getTokenField(token, 'member_name');
+        document.getElementById('email').innerText = email;
+        document.getElementById('member_name').innerText = member_name;
+        document.getElementById('div_user_info').style.display = 'block';
+        document.getElementById('div_login').style.display = 'none';
+    }
+    else
+    {
+        // 로그인 버튼 출력
+        document.getElementById('div_user_info').style.display = 'none';
+        document.getElementById('div_login').style.display = 'block';
+    }
+    });
+};
+
+
+</script>
+
+</body>
+</html>
