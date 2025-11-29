@@ -74,12 +74,34 @@
             document.getElementById('member_name').innerText = member_name;
             document.getElementById('div_user_info').style.display = 'block';
 
+            //
+            do_login_success();
+<!--            let sendResult = sendToFlutter({-->
+<!--                action: 'login_success',-->
+<!--                data: { access_token: token },-->
+<!--              });-->
+<!--            console.log('sendResult=' + sendResult);-->
+<!--            alert('sendResult=' + sendResult);-->
+
+<!--            if( sendResult ) {-->
+<!--                // Flutter에서 메시지 받기 (자동으로 handleFlutterMessage 호출됨)-->
+<!--                window.handleFlutterMessage = function(message) {-->
+<!--                  console.log('Received from Flutter:', message);-->
+<!--                  alert('message=' + JSON.stringify(message));-->
+<!--                };-->
+<!--            }-->
+
             // 로그인 상태
             container.innerHTML = `
-                <button onclick="location.href='/test/logout'" class="btn btn-secondary big-button">로그아웃 (Logout)</button>
+                <button onclick="javascript:cgmIamLib.logout();" class="btn btn-secondary big-button">로그아웃 (Logout)</button>
                 <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
                 <button onclick="location.href='https://dev-iam.nwcgm.com/membership'" class="btn btn-primary big-button">멤버십 (Membership)</button>
                 <button onclick="location.href='/test/guest'" class="btn btn-primary big-button">Guest</button>
+                <hr>
+                <button class="btn btn-warning big-button" onclick="do_login_success()">do_login_success</button>
+                <button class="btn btn-warning big-button" onclick="do_request_qr_scan()">do_request_qr_scan</button>
+                <button class="btn btn-warning big-button" onclick="do_request_location_check()">do_request_location_check</button>
+                <button class="btn btn-warning big-button" onclick="do_logout()">do_logout</button>
             `;
         } else {
             document.getElementById('div_user_info').style.display = 'none';
@@ -90,9 +112,135 @@
                 <button onclick="location.href='https://dev-iam.nwcgm.com/join?id_join=Y&client_id=wmd-front&redirect_uri=https://www.doridori.pe.kr:13000/test'" class="btn btn-warning big-button">가입하기 (Join)</button>
                 <button onclick="location.href='/test/mypage'" class="btn btn-primary big-button">내 정보 (MyPage)</button>
                 <button onclick="location.href='/test/guest'" class="btn btn-primary big-button">Guest</button>
+                <hr>
+                <button class="btn btn-warning big-button" onclick="do_login_success()">do_login_success</button>
+                <button class="btn btn-warning big-button" onclick="do_request_qr_scan()">do_request_qr_scan</button>
+                <button class="btn btn-warning big-button" onclick="do_request_location_check()">do_request_location_check</button>
+                <button class="btn btn-warning big-button" onclick="do_logout()">do_logout</button>
             `;
         }
     };
+
+    function do_login_success() {
+        let token = cgmIamLib.getAccessToken();
+        //
+        let sendResult = sendToFlutter({
+            action: 'login_success',
+            data: { access_token: token },
+          });
+        console.log('do_login_success::sendResult=' + sendResult);
+        alert('do_login_success::sendResult=' + sendResult);
+
+        if( sendResult ) {
+            // Flutter에서 메시지 받기 (자동으로 handleFlutterMessage 호출됨)
+            window.handleFlutterMessage = function(message) {
+              console.log('do_login_success::Received from Flutter:', message);
+              alert('do_login_success::message=' + JSON.stringify(message));
+            };
+        }
+    }
+
+    function do_request_qr_scan() {
+        let token = cgmIamLib.getAccessToken();
+        //
+        let sendResult = sendToFlutter({
+            action: 'request_qr_scan',
+            data: { access_token: token },
+          });
+        console.log('do_request_qr_scan::sendResult=' + sendResult);
+        alert('do_request_qr_scan::sendResult=' + sendResult);
+
+        if( sendResult ) {
+            // Flutter에서 메시지 받기 (자동으로 handleFlutterMessage 호출됨)
+            window.handleFlutterMessage = function(message) {
+              console.log('do_request_qr_scan::Received from Flutter:', message);
+              alert('do_request_qr_scan::message=' + JSON.stringify(message));
+            };
+        }
+    }
+
+    function do_request_location_check() {
+        let token = cgmIamLib.getAccessToken();
+        //
+        let sendResult = sendToFlutter({
+            action: 'request_location_check',
+            data: { access_token: token },
+          });
+        console.log('do_request_location_check::sendResult=' + sendResult);
+        alert('do_request_location_check::sendResult=' + sendResult);
+
+        if( sendResult ) {
+            // Flutter에서 메시지 받기 (자동으로 handleFlutterMessage 호출됨)
+            window.handleFlutterMessage = function(message) {
+              console.log('do_request_location_check::Received from Flutter:', message);
+              alert('do_request_location_check::message=' + JSON.stringify(message));
+            };
+        }
+    }
+
+    function do_logout() {
+        let token = cgmIamLib.getAccessToken();
+        //
+        let sendResult = sendToFlutter({
+            action: 'logout',
+            data: { access_token: token },
+          });
+        console.log('do_logout::sendResult=' + sendResult);
+        alert('do_logout::sendResult=' + sendResult);
+
+        if( sendResult ) {
+            // Flutter에서 메시지 받기 (자동으로 handleFlutterMessage 호출됨)
+            window.handleFlutterMessage = function(message) {
+              console.log('do_logout::Received from Flutter:', message);
+              alert('do_logout::message=' + JSON.stringify(message));
+            };
+        }
+    }
+
+    function checkFlutter() {
+      const hasFlutterChannel = typeof window.FlutterChannel !== 'undefined';
+      console.log(
+        hasFlutterChannel
+          ? '✅ Flutter WebView detected'
+          : '⚠️ Running in browser (Flutter not detected)'
+      );
+
+      // Notify Flutter that web is ready
+      if (hasFlutterChannel && window.FlutterChannel) {
+        const webReadyMessage = {
+          action: 'web_ready',
+          data: {
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+          },
+        };
+
+        try {
+          window.FlutterChannel.postMessage(JSON.stringify(webReadyMessage));
+          console.log('🌐 Web ready notification sent to Flutter');
+        } catch (error) {
+          console.error('❌ Failed to send web_ready:', error);
+        }
+      }
+    }
+
+    // Send message TO Flutter
+    function sendToFlutter(message) {
+      if (!window.FlutterChannel) {
+        console.warn('⚠️ FlutterChannel not available. Message not sent:', message);
+        return false;
+      }
+
+      try {
+        const jsonMessage = JSON.stringify(message);
+        window.FlutterChannel.postMessage(jsonMessage);
+        console.log('🌐 Message sent to Flutter:', message);
+        return true;
+      } catch (error) {
+        console.error('❌ Failed to send message to Flutter:', error);
+        return false;
+      }
+    }
 
     window.addEventListener("DOMContentLoaded", doLoginCheck, { once: true });
 

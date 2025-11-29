@@ -80,7 +80,7 @@
     };
 
     async function loadUserInfo() {
-        const accessToken = localStorage.getItem(CGMIAM_ID_TOKEN_KEY);
+        const accessToken = sessionStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY);
         if (!accessToken) {
             Swal.fire({ title: '오류', text: '인증정보가 없습니다. 로그인을 진행해 주세요.', timer: 2000, timerProgressBar: true})
                 .then( () => {

@@ -1,3 +1,7 @@
+/**
+ * CGM IAM Library v1.0 - 2025-08-30
+ */
+
 const CGMIAM_ACCESS_TOKEN_KEY = 'cgm_access_token';
 const CGMIAM_REFRESH_TOKEN_KEY = 'cgm_refresh_token';
 const CGMIAM_ID_TOKEN_KEY = 'cgm_id_token';
@@ -6,9 +10,12 @@ class CgmIamLib {
   constructor(config) {
     this.authEndpoint = `${config.KEYCLOAK_HOST}/realms/nwc/protocol/openid-connect/auth`;
     this.tokenEndpoint = `${config.KEYCLOAK_HOST}/realms/nwc/protocol/openid-connect/token`;
+    this.logoutEndpoint = `${config.KEYCLOAK_HOST}/realms/nwc/protocol/openid-connect/logout`;
+
     this.clientId = config.CLIENT_ID;
     this.redirectUri = config.REDIRECT_URI;
     this.iamHost = config.IAM_HOST;
+    this.homeUri = config.HOME_URI;
   }
 
   async buildAuthUrl() {
@@ -16,13 +23,15 @@ class CgmIamLib {
     const nonce = this.generateRandomString();
     const code_verifier = this.generateCodeVerifier();
     const code_challenge = await this.generateCodeChallenge(code_verifier);
-    localStorage.setItem('code_verifier', code_verifier);
+    sessionStorage.setItem('code_verifier', code_verifier);
+    sessionStorage.setItem('state', state);
+    sessionStorage.setItem('nonce', nonce);
 
     var lang = "ko"; // ko, en, ja, zh_TW, de, fr, pt, ru, mn, vi, es
 
-    //console.log('lang=' + lang);
-    //console.log('code_verifier=' + code_verifier);
-    //console.log('code_challenge=' + code_challenge);
+    // console.log('lang=' + lang);
+    // console.log('code_verifier=' + code_verifier);
+    // console.log('code_challenge=' + code_challenge);
 
     const params = new URLSearchParams({
       client_id: this.clientId,
@@ -36,7 +45,7 @@ class CgmIamLib {
       code_challenge_method: 'S256',
     });
 
-    //console.log(params.toString());
+    // console.log(params.toString());
 
     return `${this.authEndpoint}?${params.toString()}`;
   }
@@ -70,7 +79,7 @@ class CgmIamLib {
   }
 
   async exchangeCodeForToken(code) {
-    const code_verifier = localStorage.getItem('code_verifier');
+    const code_verifier = sessionStorage.getItem('code_verifier');
 
     const params = new URLSearchParams();
     params.append('grant_type', 'authorization_code');
@@ -88,19 +97,28 @@ class CgmIamLib {
         body: params
       });
 
+      sessionStorage.removeItem('state');
+
       if (!response.ok) {
-        const error = await response.text();
-        console.error('Token exchange failed:', error);
+        //const error = await response.text();
+        //console.error('Token exchange failed:', error);
+		console.error('Token exchange failed:');
         return;
       }
 
       const data = await response.json();
 
-      //console.log('Access Token:', data.access_token);
-      //console.log('ID Token:', data.id_token);
-      //console.log('Refresh Token:', data.refresh_token);
+      // console.log('Access Token:', data.access_token);
+      // console.log('ID Token:', data.id_token);
+      // console.log('Refresh Token:', data.refresh_token);
 
-      // token validate...
+      // id_token validate...
+      if( ! this.validateIdToken(data.id_token) ) {
+        console.error('Invalid ID Token..');
+        return;
+      }
+
+      // access_token validate...
       const parts = data.access_token.split('.');
       if (parts.length !== 3) {
         console.error('Invalid Access Token');
@@ -130,19 +148,58 @@ class CgmIamLib {
       }
 
       // access_token 저장
-      localStorage.setItem(CGMIAM_ACCESS_TOKEN_KEY, data.access_token);
-      localStorage.setItem(CGMIAM_REFRESH_TOKEN_KEY, data.refresh_token);
-      localStorage.setItem(CGMIAM_ID_TOKEN_KEY, data.id_token);
+      sessionStorage.setItem(CGMIAM_ACCESS_TOKEN_KEY, data.access_token);
+      sessionStorage.setItem(CGMIAM_REFRESH_TOKEN_KEY, data.refresh_token);
+      sessionStorage.setItem(CGMIAM_ID_TOKEN_KEY, data.id_token);
+      sessionStorage.removeItem('code_verifier');
+      sessionStorage.removeItem('state');
+      sessionStorage.removeItem('nonce');
 
-      await this.setIamAccessToken(data.access_token);
+      await this.saveIamSid(payload.sid);
 
     } catch (err) {
       console.error('Error during token exchange:', err);
     }
   }
 
+  validateIdToken(id_token) {
+      const parts = id_token.split('.');
+      if (parts.length !== 3) {
+        console.error('Invalid ID Token');
+        return false;
+      }
+
+      // Keycloak 계정 정보
+      const parts2 = this.base64UrlDecode(parts[1]);
+      if (!parts2)
+      {
+          console.error('base64UrlDecode failed');
+          return false;
+      }
+
+      const payload = JSON.parse(parts2);
+      // console.log('Decoded Token(Payload):' + JSON.stringify(payload));
+      // console.log('Decoded Token(sub):' + payload.sub);
+      // console.log('Decoded Token(email):' + payload.email);
+      // console.log('Decoded Token(member_name):' + payload.member_name);
+      // console.log('Decoded Token(nickname):' + payload.nickname);
+      // console.log('Decoded Token(member_verified):' + payload.member_verified);
+      // console.log('Decoded Token(nonce):' + payload.nonce);
+
+      const nonce = payload.nonce;
+      const old_nonce = sessionStorage.getItem('nonce');
+
+      if( old_nonce === nonce ) return true;
+      return false;
+  }
+
   getAuthorizationCodeFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
+
+    const state= urlParams.get('state');
+    const old_state = sessionStorage.getItem('state');
+    if( old_state !== state ) return null;
+
     return urlParams.get('code');
   }
 
@@ -172,32 +229,10 @@ class CgmIamLib {
     window.location.href = joinUrl;
   }
 
-  // function setCookie(name, value) {
-  //   const expires = new Date();
-  //   expires.setTime(expires.getTime() + hours * 60 * 60 * 1000);
-  //   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/`;
-  // }
 
-  // // 쿠키 읽기
-  // function getCookie(name) {
-  //   const cookies = document.cookie.split(';');
-  //   for (let c of cookies) {
-  //     const [key, val] = c.trim().split('=');
-  //     if (key === name) return decodeURIComponent(val);
-  //   }
-  //   return null;
-  // }
+  //---------------------------------------------------------------
 
-  // // 쿠키 삭제
-  // function deleteCookie(name) {
-  //   document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`;
-  // }
-
-  // 샘플화면 - 로그인 버튼
-  //document.getElementById('loginButton').addEventListener('click', redirectToLogin);
-
-
-  getUuidFormToken(token)
+  getSidFromToken(token)
   {
     if( token == null ) return '';
     const parts = token.split('.');
@@ -214,113 +249,234 @@ class CgmIamLib {
 
     const payload = JSON.parse(parts2);
 
-    // uuid
-    return payload.sub;
+    // sid
+    return payload.sid;
   }
 
+  async saveIamSid(sid) {
 
-  // iframe 생성될 때까지 기다리는 유틸
-  getStorageFrame() {
-    if (this.storageFrame && this.storageFrame.contentWindow) return Promise.resolve(this.storageFrame);
+    let url = `${this.iamHost}/api/sid/${sid}`;
 
-    this.storageFrame = document.createElement("iframe");
-    this.storageFrame.src = `${this.iamHost}/token.html`;
-    //this.storageFrame.style.display = "none";
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+      });
 
-    const p = new Promise((resolve, reject) => {
-      this.storageFrame.addEventListener("load", () => resolve(this.storageFrame), { once: true });
-      this.storageFrame.addEventListener("error", () => reject(new Error("Storage iframe load failed")), { once: true });
-    });
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Token exchange failed:', error);
+        return;
+      }
 
-    document.body.appendChild(this.storageFrame);
-    return p;
+    } catch (err) {
+      console.error('Error during saveSid:', err);
+    }
   }
 
-  // 한 번만 응답을 기다리는 유틸 (타임아웃 지원)
-  waitForMessageOnce({ type, fromWindow, origin, timeout = 5000 }) {
-    return new Promise((resolve, reject) => {
-      const onMessage = (event) => {
-        if (event.source !== fromWindow) return;              // 해당 iframe에서 온 메시지인지
-        if (event.origin !== origin) return;                  // origin 검사
-        if (!event.data || event.data.type !== type) return;  // 타입 일치
-        window.removeEventListener("message", onMessage);
-        clearTimeout(timer);
-        resolve(event.data);
-      };
+  async getIamSid(sid) {
 
-      const timer = setTimeout(() => {
-        window.removeEventListener("message", onMessage);
-        reject(new Error(`Timed out waiting for "${type}" message`));
-      }, timeout);
+    let url = `${this.iamHost}/api/sid/${sid}`;
 
-      window.addEventListener("message", onMessage, { once: false });
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+      });
+
+      const body = await response.text();
+
+      if (!response.ok) {
+        console.error('Token exchange failed:', body);
+        return '';
+      }
+
+      return body;
+
+    } catch (err) {
+      console.error('Error during getSid:', err);
+      return '';
+    }
   }
 
-  // 공용 postMessage 래퍼
-  async postToStorage(msg, { expectType, timeout } = {}) {
-    const frame = await this.getStorageFrame();
-    const win = frame.contentWindow;
+  async removeIamSid(sid) {
 
-    const waitPromise = expectType
-      ? this.waitForMessageOnce({ type: expectType, fromWindow: win, origin: this.iamHost, timeout })
-      : Promise.resolve(null);
+    let url = `${this.iamHost}/api/sid/${sid}`;
 
-    win.postMessage(msg, this.iamHost);
-    return waitPromise;
+    try {
+      const response = await fetch(url, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Token exchange failed:', error);
+        return;
+      }
+
+    } catch (err) {
+      console.error('Error during token exchange:', err);
+    }
   }
 
-  // IAM 토큰 가져오기
-  async getIamAccessToken(timeout = 5000) {
-    const data = await this.postToStorage(
-      { type: "getIamAccessToken" },
-      { expectType: "getIamAccessTokenResult", timeout }
-    );
-
-    return data?.value ?? null;
-  }
-
-  // IAM 토큰 저장하기
-  async setIamAccessToken(token, timeout = 1000) {
-
-    const data = await this.postToStorage(
-      { type: "setIamAccessToken", value: token },
-      { expectType: "setIamAccessTokenResult", timeout }
-    );
-
-    return data?.value ?? null;
-  }
-
-  // 로그인 여부. 로컬 토큰과 IAM 사이트 토크에 있는 uuid(sub) 값 비교하여 같은 경우만 true.
   async checkLogin()
   {
-    let iam_token = await this.getIamAccessToken();
-    console.log('iam_token=' + iam_token);
+    let sid = this.getSidFromToken(sessionStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY));
+    if ( sid == '' ) return false;
 
-    let local_uuid = this.getUuidFormToken(localStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY));
-    //console.log('local_uuid=' + local_uuid);
-    if ( local_uuid == '' ) return false;
+    let iam_sid = await this.getIamSid(sid);
+    // console.log('iam_sid=' + iam_sid);
 
-    let iam_uuid = this.getUuidFormToken(iam_token);
-    if( iam_token ) {
-        iam_uuid = this.getUuidFormToken(iam_token);
-        //console.log('iam_uuid=' + iam_uuid);
-        if ( iam_uuid == '' ) return false;
+    if ( sid !== iam_sid ) {
+      sessionStorage.removeItem(CGMIAM_ACCESS_TOKEN_KEY);
+      sessionStorage.removeItem(CGMIAM_REFRESH_TOKEN_KEY);
+      sessionStorage.removeItem(CGMIAM_ID_TOKEN_KEY);
+      return false;
     }
 
-    if ( local_uuid !== iam_uuid ) return false;
+    let token = this.getAccessToken();
+    try {
+      // access_token validate...
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        console.error('Invalid Access Token');
+        return false;
+      }
+
+      // Keycloak 계정 정보
+      const parts2 = this.base64UrlDecode(parts[1]);
+      if (!parts2) {
+        console.error('base64UrlDecode failed');
+        return false;
+      }
+
+      const payload = JSON.parse(parts2);
+      if (!payload.exp) {
+        console.error("Invalid Access Token: exp not found");
+        return false;
+      }
+
+      const now = Math.floor(Date.now() / 1000);
+      console.log('payload.iat=' + payload.iat);
+      console.log('payload.exp=' + payload.exp);
+      console.log('exp-iat=====' + (payload.exp - payload.iat));
+      console.log('now=========' + now);
+
+      if ( payload.exp > now )
+      {
+        return true;
+      }
+
+      if ( ! await this.refreshToken() ) {
+        sessionStorage.removeItem(CGMIAM_ACCESS_TOKEN_KEY);
+        sessionStorage.removeItem(CGMIAM_REFRESH_TOKEN_KEY);
+        sessionStorage.removeItem(CGMIAM_ID_TOKEN_KEY);
+        return false;
+      }
+
+      return true;
+
+    } catch (e) {
+      console.error("Invalid Access Token:", e);
+      return false;
+    }
 
     return true;
 
   }
 
-  getAccessToken()
+
+  async refreshToken()
   {
-    return localStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY);
+    const refresh_token = sessionStorage.getItem(CGMIAM_REFRESH_TOKEN_KEY);
+
+    const params = new URLSearchParams();
+    params.append('grant_type', 'refresh_token');
+    params.append('refresh_token', refresh_token);
+    params.append('client_id', this.clientId);
+
+    try {
+      const response = await fetch(this.tokenEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error('Token refresh failed:', error);
+        return false;
+      }
+
+      const data = await response.json();
+
+      // console.log('Access Token:', data.access_token);
+      // console.log('ID Token:', data.id_token);
+      // console.log('Refresh Token:', data.refresh_token);
+
+      // access_token validate...
+      const parts = data.access_token.split('.');
+      if (parts.length !== 3) {
+        console.error('Invalid Access Token');
+        return false;
+      }
+
+      // Keycloak 계정 정보
+      const parts2 = this.base64UrlDecode(parts[1]);
+      if (!parts2)
+      {
+          console.error('base64UrlDecode failed');
+          return false;
+      }
+
+      // access_token 저장
+      sessionStorage.setItem(CGMIAM_ACCESS_TOKEN_KEY, data.access_token);
+
+      return true;
+
+    } catch (err) {
+      console.error('Error during token refresh:', err);
+      return false;
+    }
   }
 
+  async logout()
+  {
+
+    let sid = this.getSidFromToken(sessionStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY));
+
+    if ( sid != '' ) await this.removeIamSid(sid);
+
+    let id_token = sessionStorage.getItem(CGMIAM_ID_TOKEN_KEY);
+
+    sessionStorage.removeItem(CGMIAM_ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(CGMIAM_REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(CGMIAM_ID_TOKEN_KEY);
+
+    const params = new URLSearchParams({
+      post_logout_redirect_uri: this.homeUri,
+      id_token_hint: id_token,
+    });
+
+    window.location.href = `${this.logoutEndpoint}?${params.toString()}`;
+
+  }
+
+  getAccessToken()
+  {
+    return sessionStorage.getItem(CGMIAM_ACCESS_TOKEN_KEY);
+  }
+
+
+  // fieldName
+  // - member_verified - true, false
+  // - nickname
+  // - member_name
+  // - email
   getTokenField(token, fieldName)
   {
+    if (!token) return '';
+
     if (typeof token !== 'string' || !token.includes('.')) {
       console.error('Invalid Access Token: not a JWT string');
       return '';
@@ -357,24 +513,6 @@ class CgmIamLib {
     // console.log('Decoded Token(member_name):' + payload.member_name);
     // console.log('Decoded Token(nickname):' + payload.nickname);
     // console.log('Decoded Token(member_verified):' + payload.member_verified);
-  }
-
-
-  logout()
-  {
-    localStorage.removeItem(CGMIAM_ACCESS_TOKEN_KEY);
-    localStorage.removeItem(CGMIAM_REFRESH_TOKEN_KEY);
-
-    // 로그아웃의 경우 루트(/)를 redirect_uri로 설정
-    const baseUrl = new URL(this.redirectUri).origin;
-
-    const params = new URLSearchParams({
-      client_id: this.clientId,
-      redirect_uri: baseUrl
-    });
-
-    window.location.href = `${this.iamHost}/logout?${params.toString()}`;
-
   }
 
 }
